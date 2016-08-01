@@ -5,6 +5,7 @@ import csv
 import subprocess
 
 from datetime import datetime
+from pytz import timezone
 
 SPEED_TEST_OUTPUT_REGEX_PATTERN = 'Ping:\s([\d\.]+)\s\w+\nDownload:\s([\d\.]+)\s[\w\/]+\nUpload:\s([\d\.]+)'
 INTERVAL_TIME_SEC = 3600 # 1 hour
@@ -39,13 +40,14 @@ def ParseSpeedTestOutput(output):
 # make it account for the time it takes to run the test.
 def ContinuousTesting():
   while True:
-    print('SpeedTest started at: ' + str(datetime.now()))
+    pst = timezone('US/Pacific')
+    print('SpeedTest started at: ' + str(datetime.now(pst)))
     runOutput = ParseSpeedTestOutput(RunSpeedTest())
 
     # Append to the csv file.
     with open('speedData.csv', 'a', 0) as csvfile:
       csvWriter = csv.writer(csvfile, delimiter=' ')
-      csvWriter.writerow([time.time(), str(datetime.now()), runOutput[0],
+      csvWriter.writerow([time.time(), str(datetime.now(pst)), runOutput[0],
           runOutput[1], runOutput[2]])
 
     time.sleep(INTERVAL_TIME_SEC)
