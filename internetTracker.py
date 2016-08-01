@@ -8,7 +8,7 @@ from datetime import datetime
 from pytz import timezone
 
 SPEED_TEST_OUTPUT_REGEX_PATTERN = 'Ping:\s([\d\.]+)\s\w+\nDownload:\s([\d\.]+)\s[\w\/]+\nUpload:\s([\d\.]+)'
-INTERVAL_TIME_SEC = 3600 # 1 hour
+INTERVAL_TIME_SEC = 1800 # 30 minutes
 
 def RunSpeedTest():
   try:
