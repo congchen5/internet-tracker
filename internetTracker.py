@@ -7,7 +7,7 @@ import subprocess
 from datetime import datetime
 
 SPEED_TEST_OUTPUT_REGEX_PATTERN = 'Ping:\s([\d\.]+)\s\w+\nDownload:\s([\d\.]+)\s[\w\/]+\nUpload:\s([\d\.]+)'
-INTERVAL_TIME_SEC = 30
+INTERVAL_TIME_SEC = 3600 # 1 hour
 
 def RunSpeedTest():
   try:
