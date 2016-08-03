@@ -7,12 +7,13 @@ import subprocess
 from datetime import datetime
 from pytz import timezone
 
-SPEED_TEST_OUTPUT_REGEX_PATTERN = 'Ping:\s([\d\.]+)\s\w+\nDownload:\s([\d\.]+)\s[\w\/]+\nUpload:\s([\d\.]+)'
+SPEED_TEST_OUTPUT_REGEX_PATTERN = (
+    'Ping:\s([\d\.]+)\s\w+\nDownload:\s([\d\.]+)\s[\w\/]+\nUpload:\s([\d\.]+)')
 INTERVAL_TIME_SEC = 600 # 10 minutes
 
 def RunSpeedTest():
   try:
-    #return 'Ping: 12.34 ms\nDownload: 23.45 Mbit/s\nUpload: 10.1 Mbit/s'
+    # return 'Ping: 12.34 ms\nDownload: 23.45 Mbit/s\nUpload: 10.1 Mbit/s'
     speedResult = subprocess.check_output(['speedtest-cli', '--simple'])
   except subprocess.CalledProcessError as e:
     print('Error in running the speed test.')
