@@ -11,6 +11,9 @@ from pprint import pprint
 
 # This file expects a settings.config file which includes a JSON with all the
 # appropriate configuration settings. The expected values are as follows:
+#
+# settings.config
+#
 # {
 #   - interval: time in sec between every interval of speed test
 #   - debug: whether to run in debug mode or not. SpeedTest will be mocked. TODO
