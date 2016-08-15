@@ -3,13 +3,37 @@ import re
 import time
 import csv
 import subprocess
+import json
 
 from datetime import datetime
 from pytz import timezone
+from pprint import pprint
+
+# This file expects a settings.config file which includes a JSON with all the
+# appropriate configuration settings. The expected values are as follows:
+# {
+#   - interval: time in sec between every interval of speed test
+#   - debug: whether to run in debug mode or not. SpeedTest will be mocked. TODO
+#   - time: TODO
+#   - offset: TODO
+# }
 
 SPEED_TEST_OUTPUT_REGEX_PATTERN = (
     'Ping:\s([\d\.]+)\s\w+\nDownload:\s([\d\.]+)\s[\w\/]+\nUpload:\s([\d\.]+)')
-INTERVAL_TIME_SEC = 600 # 10 minutes
+INTERVAL_TIME_SEC = -1
+
+def ReadSettingsConfig():
+  with open('settings.config') as settings_file:
+    data = json.load(settings_file)
+  # pprint(data)
+
+  global INTERVAL_TIME_SEC
+  if 'interval' in data:
+    INTERVAL_TIME_SEC = data['interval']
+
+def CheckConfigValues():
+  if INTERVAL_TIME_SEC == -1:
+    raise Exception('Please supply an interval time in settings.config.')
 
 def RunSpeedTest():
   try:
@@ -48,6 +72,8 @@ def ParseSpeedTestOutput(output):
 # TODO: define a class that sets the interval and has a start and stop. Also
 # make it account for the time it takes to run the test.
 def ContinuousTesting():
+  print('Interval Time: ' + str(INTERVAL_TIME_SEC) + ' sec.')
+
   while True:
     pst = timezone('US/Pacific')
     print('SpeedTest started at: ' + str(datetime.now(pst)))
@@ -68,6 +94,12 @@ def ContinuousTesting():
     time.sleep(INTERVAL_TIME_SEC)
 
 def main():
+  # First, read in the settings.config
+  ReadSettingsConfig()
+
+  # Make sure all values are properly set from config file
+  CheckConfigValues()
+
   ContinuousTesting()
 
 if __name__ == '__main__':
