@@ -25,6 +25,55 @@ SPEED_TEST_OUTPUT_REGEX_PATTERN = (
     'Ping:\s([\d\.]+)\s\w+\nDownload:\s([\d\.]+)\s[\w\/]+\nUpload:\s([\d\.]+)')
 INTERVAL_TIME_SEC = -1
 
+class PollSpeedTest:
+  def __init__(self, interval):
+    self.interval = interval
+
+    # Whether polling is active or not
+    self.active = false
+
+  def Start(self):
+    self.active = True
+
+  def Stop(self):
+    self.active = False
+
+  def Poll(self):
+    print('ToDo')
+
+  def _RunSpeedTest(self):
+    try:
+      # return 'Ping: 12.34 ms\nDownload: 23.45 Mbit/s\nUpload: 10.1 Mbit/s'
+      speedResult = subprocess.check_output(['speedtest-cli', '--simple'])
+    except subprocess.CalledProcessError as e:
+      print('Error in running the speed test.')
+      print('Command \'{}\' return with error (code {}): {}'.format(
+          e.cmd, e.returncode, e.output))
+      return -1
+
+    except:
+      print('General Error in running the speed test.')
+      return -1
+
+    return speedResult;
+
+  def _ParseSpeedTestOutput(self, output):
+    matches = re.match(SPEED_TEST_OUTPUT_REGEX_PATTERN, output)
+    try:
+      print('Ping: ' + matches.group(1))
+      print('Download: ' + matches.group(2))
+      print('Upload: ' + matches.group(3))
+
+      ping = matches.group(1)
+      download = matches.group(2)
+      upload = matches.group(3)
+    except:
+      print ('Unexpected Error while parsing the string output from speed test.')
+      print ('Regex matched group: {0}'.format(matches))
+      raise
+
+    return [ping, download, upload];
+
 def ReadSettingsConfig():
   with open('settings.config') as settings_file:
     data = json.load(settings_file)
@@ -37,40 +86,6 @@ def ReadSettingsConfig():
 def CheckConfigValues():
   if INTERVAL_TIME_SEC == -1:
     raise Exception('Please supply an interval time in settings.config.')
-
-def RunSpeedTest():
-  try:
-    # return 'Ping: 12.34 ms\nDownload: 23.45 Mbit/s\nUpload: 10.1 Mbit/s'
-    speedResult = subprocess.check_output(['speedtest-cli', '--simple'])
-  except subprocess.CalledProcessError as e:
-    print('Error in running the speed test.')
-    print('Command \'{}\' return with error (code {}): {}'.format(
-        e.cmd, e.returncode, e.output))
-    return -1
-
-  except:
-    print('General Error in running the speed test.')
-    return -1
-
-  return speedResult;
-
-def ParseSpeedTestOutput(output):
-  matches = re.match(SPEED_TEST_OUTPUT_REGEX_PATTERN, output)
-  try:
-    print('Ping: ' + matches.group(1))
-    print('Download: ' + matches.group(2))
-    print('Upload: ' + matches.group(3))
-
-    ping = matches.group(1)
-    download = matches.group(2)
-    upload = matches.group(3)
-  except:
-    print ('Unexpected Error while parsing the string output from speed test.')
-    print ('Regex matched group: {0}'.format(matches))
-    raise
-
-  return [ping, download, upload];
-
 
 # TODO: define a class that sets the interval and has a start and stop. Also
 # make it account for the time it takes to run the test.
