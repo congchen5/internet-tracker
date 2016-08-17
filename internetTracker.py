@@ -47,13 +47,14 @@ class PollingSpeedTest:
 
     # Only parse and export data if the speedTest did not fail.
     if (speedTestResult != -1):
-      runOutput = self._ParseSpeedTestOutput(self._RunSpeedTest())
+      runOutput = self._ParseSpeedTestOutput(speedTestResult)
 
-      # Append to the csv file.
-      with open('speedData.csv', 'a', 0) as csvfile:
-        csvWriter = csv.writer(csvfile, delimiter=' ')
-        csvWriter.writerow([time.time(), str(datetime.now(pst)), runOutput[0],
-            runOutput[1], runOutput[2]])
+      # Append to the csv file if parsing was successful.
+      if runOutput != -1:
+        with open('speedData.csv', 'a', 0) as csvfile:
+          csvWriter = csv.writer(csvfile, delimiter=' ')
+          csvWriter.writerow([time.time(), str(datetime.now(pst)), runOutput[0],
+              runOutput[1], runOutput[2]])
     else:
       print('Skipping SpeedTest due to failed test.')
 
@@ -82,8 +83,9 @@ class PollingSpeedTest:
     return speedResult;
 
   def _ParseSpeedTestOutput(self, output):
-    matches = re.match(self.speedTestOutputRegex, output)
     try:
+      matches = re.match(self.speedTestOutputRegex, output)
+
       print('Ping: ' + matches.group(1))
       print('Download: ' + matches.group(2))
       print('Upload: ' + matches.group(3))
@@ -92,9 +94,9 @@ class PollingSpeedTest:
       download = matches.group(2)
       upload = matches.group(3)
     except:
-      print ('Unexpected Error while parsing the string output from speed test.')
+      print ('Unexpected Error while parsing the output from speed test.')
       print ('Regex matched group: {0}'.format(matches))
-      raise
+      print -1
 
     return [ping, download, upload];
 
