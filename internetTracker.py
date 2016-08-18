@@ -15,34 +15,52 @@ from pprint import pprint
 # settings.config
 #
 # {
-#   - interval: time in sec between every interval of speed test
-#   - debug: whether to run in debug mode or not. SpeedTest will be mocked. TODO
-#   - time: TODO
-#   - offset: TODO
+#   - debug: whether to run in debug mode or not. SpeedTest will be mocked.
+#   - offset: minute offset from the hour of when to perform the speed test.
+#   - times: number of times per hour to perform a speed test.
 # }
+#
+# Note: We assume that the interval between each speed test does is not less
+# than the time it takes to perform a speed test itself.
+# (HOUR_IN_SEC / times) > speedTest time
 
 class PollingSpeedTest:
   """A class that allows you to poll speedTests and export the result to csv"""
   speedTestOutputRegex = (
     'Ping:\s([\d\.]+)\s\w+\nDownload:\s([\d\.]+)\s[\w\/]+\nUpload:\s([\d\.]+)')
+  HOUR_IN_SEC = 3600
 
-  def __init__(self, debug, interval):
+  def __init__(self, debug, offset, times):
     self.debug = debug
-    self.interval = interval
+    self.offset = offset
+    self.interval = self.HOUR_IN_SEC / times
 
     # Whether polling is active or not
     self.active = False
 
   def Start(self):
     self.active = True
-    self.Poll()
+
+    self._WaitTillOffset()
+    self._Poll()
 
   def Stop(self):
     self.active = False
 
-  def Poll(self):
-    pst = timezone('US/Pacific')
-    print('SpeedTest started at: ' + str(datetime.now(pst)))
+  # Poll every minutes until we are at the offset time.
+  def _WaitTillOffset(self):
+    if time.localtime().tm_min == self.offset:
+      if self.debug:
+        print('Offset time hit at time: ' + CurrentTime())
+      return
+    else:
+      time.sleep(60)
+      self._WaitTillOffset()
+
+  def _Poll(self):
+    startTime = time.time()
+
+    print('SpeedTest started at: ' + CurrentTime())
     speedTestResult = self._RunSpeedTest()
 
     # Only parse and export data if the speedTest did not fail.
@@ -53,15 +71,17 @@ class PollingSpeedTest:
       if runOutput != -1:
         with open('speedData.csv', 'a', 0) as csvfile:
           csvWriter = csv.writer(csvfile, delimiter=' ')
-          csvWriter.writerow([time.time(), str(datetime.now(pst)), runOutput[0],
+          csvWriter.writerow([time.time(), CurrentTime(), runOutput[0],
               runOutput[1], runOutput[2]])
     else:
       print('Skipping SpeedTest due to failed test.')
 
     # If polling is active, all Poll again after waiting interval amount of time
     if self.active:
-      time.sleep(self.interval)
-      self.Poll()
+      # Account for the amount of time spent performing the speed test.
+      speedTestTime = time.time() - startTime
+      time.sleep(self.interval - speedTestTime)
+      self._Poll()
     else:
       print('Polling stopped.')
 
@@ -103,28 +123,33 @@ class PollingSpeedTest:
 def ReadSettingsConfig():
   with open('settings.config') as settings_file:
     data = json.load(settings_file)
-  #pprint(data)
+  pprint(data)
 
   debug = False
-  interval = -1
-
-  if 'interval' in data:
-    interval = data['interval']
-
-  # Make sure an interval time is supplied.
-  if interval == -1:
-    raise Exception('Please supply an interval time in settings.config.')
+  offset = 0  # defaults to on the hour
+  times = 1  # defaults to 1 speed test per hour
 
   if 'debug' in data:
     debug = data['debug']
 
-  return [debug, interval]
+  if 'offset' in data:
+    offset = int(data['offset'])
+  if offset < 0 or offset > 60:
+    raise Exception('Please supply a offset value between [0, 60).')
+
+  if 'times' in data:
+    times = data['times']
+
+  return [debug, offset, times]
+
+def CurrentTime():
+  return str(datetime.now(timezone('US/Pacific')))
 
 def main():
   # First, read in the settings.config
   configs = ReadSettingsConfig()
 
-  pollingSpeedTest = PollingSpeedTest(configs[0], configs[1])
+  pollingSpeedTest = PollingSpeedTest(configs[0], configs[1], configs[2])
   pollingSpeedTest.Start()
 
 if __name__ == '__main__':
