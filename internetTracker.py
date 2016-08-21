@@ -20,7 +20,14 @@ from pprint import pprint
 #   - times: number of times per hour to perform a speed test.
 # }
 #
-# Note: We assume that the interval between each speed test does is not less
+# The offset and times define the intervals of when to perform speed tests.
+# Thus, the polling can begin before the offset time.
+#
+# Example: offset: 30, times: 4. This defines the polling at once every 15 min,
+# on the hour, 15, 30, and 45. If the local time was 35, the polling would begin
+# at 45 instead of 30.
+#
+# Note: We assume that the interval between each speed test does not take less
 # than the time it takes to perform a speed test itself.
 # (HOUR_IN_SEC / times) > speedTest time
 
@@ -34,6 +41,7 @@ class PollingSpeedTest:
     self.debug = debug
     self.offset = offset
     self.interval = self.HOUR_IN_SEC / times
+    self.times = times
 
     # Whether polling is active or not
     self.active = False
@@ -41,21 +49,52 @@ class PollingSpeedTest:
   def Start(self):
     self.active = True
 
-    self._WaitTillOffset()
+    startMinute = self._DetermineStartMinute()
+    if self.debug:
+      print('Determined Start Minute: ' + str(startMinute))
+
+    self._WaitTillStart(startMinute)
     self._Poll()
 
   def Stop(self):
     self.active = False
 
-  # Poll every minutes until we are at the offset time.
-  def _WaitTillOffset(self):
-    if time.localtime().tm_min == self.offset:
+  # Takes the offset and interval to determine what the start minute is.
+  def _DetermineStartMinute(self):
+    intervals = []
+    intervalMinute = self.offset
+    for count in range(self.times):
+      intervals.append(intervalMinute % 60)
+      intervalMinute += self.interval / 60  # convert interval to minutes
+
+    intervals.sort()
+    currentMinute = time.localtime().tm_min
+
+    for interval in intervals:
+      if currentMinute < interval:
+        return interval
+
+    # Should never happen
+    return -1
+
+  def _WaitTillStart(self, startMinute):
+    currentMinute = time.localtime().tm_min
+
+    # If more than 2 minutes away, sleep until then.
+    if (startMinute - currentMinute) > 2:
       if self.debug:
-        print('Offset time hit at time: ' + CurrentTime())
+        print('Will sleep for ' + str(startMinute - currentMinute - 2) +
+              ' until startMinute ' + str(startMinute))
+      time.sleep((startMinute - currentMinute - 2) * 60)
+      self._WaitTillStart(startMinute)
+
+    if currentMinute == startMinute:
+      if self.debug:
+        print('Start time hit at time: ' + CurrentTime())
       return
     else:
-      time.sleep(60)
-      self._WaitTillOffset()
+      time.sleep(30)
+      self._WaitTillStart(startMinute)
 
   def _Poll(self):
     startTime = time.time()
