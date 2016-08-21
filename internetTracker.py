@@ -36,12 +36,16 @@ class PollingSpeedTest:
   speedTestOutputRegex = (
     'Ping:\s([\d\.]+)\s\w+\nDownload:\s([\d\.]+)\s[\w\/]+\nUpload:\s([\d\.]+)')
   HOUR_IN_SEC = 3600
+  POLL_TTL = 0
 
   def __init__(self, debug, offset, times):
     self.debug = debug
     self.offset = offset
-    self.interval = self.HOUR_IN_SEC / times
     self.times = times
+    self.interval = self.HOUR_IN_SEC / self.times
+
+    # Define the Poll TTL to be 1 day
+    self.POLL_TTL = 24 * self.times
 
     # Whether polling is active or not
     self.active = False
@@ -54,7 +58,7 @@ class PollingSpeedTest:
       print('Determined Start Minute: ' + str(startMinute))
 
     self._WaitTillStart(startMinute)
-    self._Poll()
+    self._Poll(1)
 
   def Stop(self):
     self.active = False
@@ -84,7 +88,7 @@ class PollingSpeedTest:
     if (startMinute - currentMinute) > 2:
       if self.debug:
         print('Will sleep for ' + str(startMinute - currentMinute - 2) +
-              ' until startMinute ' + str(startMinute))
+              ' until 2 min before startMinute ' + str(startMinute))
       time.sleep((startMinute - currentMinute - 2) * 60)
       self._WaitTillStart(startMinute)
 
@@ -96,7 +100,7 @@ class PollingSpeedTest:
       time.sleep(30)
       self._WaitTillStart(startMinute)
 
-  def _Poll(self):
+  def _Poll(self, count):
     startTime = time.time()
 
     print('SpeedTest started at: ' + CurrentTime())
@@ -120,7 +124,13 @@ class PollingSpeedTest:
       # Account for the amount of time spent performing the speed test.
       speedTestTime = time.time() - startTime
       time.sleep(self.interval - speedTestTime)
-      self._Poll()
+
+      # If the Poll TTL has been reached, start over to recalibrate intervals
+      if count >= self.POLL_TTL:
+        self.Start()
+      else:
+        count += 1
+        self._Poll(count)
     else:
       print('Polling stopped.')
 
