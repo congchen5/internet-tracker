@@ -78,8 +78,9 @@ class PollingSpeedTest:
       if currentMinute < interval:
         return interval
 
-    # Should never happen
-    return -1
+    # If this point is reached, that means the currentMinute is within the
+    # interval of the last value and the first value.
+    return intervals[0]
 
   def _WaitTillStart(self, startMinute):
     currentMinute = time.localtime().tm_min
