@@ -19,6 +19,7 @@ from pprint import pprint
 #   - debug: whether to run in debug mode or not. SpeedTest will be mocked.
 #   - offset: minute offset from the hour of when to perform the speed test.
 #   - times: number of times per hour to perform a speed test.
+#   - dbfile: the sqlite3 db file to use.
 # }
 #
 # The offset and times define the intervals of when to perform speed tests.
@@ -39,7 +40,8 @@ class PollingSpeedTest:
   HOUR_IN_SEC = 3600
   POLL_TTL = 0
 
-  def __init__(self, debug, offset, times):
+  def __init__(self, dbCursor, debug, offset, times):
+    self.dbCursor = dbCursor
     self.debug = debug
     self.offset = offset
     self.times = times
@@ -112,12 +114,16 @@ class PollingSpeedTest:
     if (speedTestResult != -1):
       runOutput = self._ParseSpeedTestOutput(speedTestResult)
 
-      # Append to the csv file if parsing was successful.
+      # Insert the data to the db if parsing was successful.
       if runOutput != -1:
-        with open('speedData.csv', 'a', 0) as csvfile:
-          csvWriter = csv.writer(csvfile, delimiter=' ')
-          csvWriter.writerow([time.time(), CurrentTime(), runOutput[0],
-              runOutput[1], runOutput[2]])
+        self.dbCursor.InsertSpeedTestData(self._FormFinalRowData(runOutput))
+
+      # Append to the csv file if parsing was successful.
+      #if runOutput != -1:
+      #  with open('speedData.csv', 'a', 0) as csvfile:
+      #    csvWriter = csv.writer(csvfile, delimiter=' ')
+      #    csvWriter.writerow([time.time(), CurrentTime(), runOutput[0],
+      #        runOutput[1], runOutput[2]])
     else:
       print('Skipping SpeedTest due to failed test.')
 
@@ -171,6 +177,10 @@ class PollingSpeedTest:
 
     return [ping, download, upload];
 
+  def _FormFinalRowData(self, speedTestOutput):
+    return (time.time(), CurrentTime(), speedTestOutput[0], speedTestOutput[1],
+        speedTestOutput[2])
+
 
 class SpeedTestDataCursor:
   """A class that allows you to easily work with the SQLite3 DB"""
@@ -181,24 +191,28 @@ class SpeedTestDataCursor:
           % TABLE_NAME)
   SQL_INSERT_ROW = "INSERT INTO %s VALUES (?, ?, ?, ?, ?);" % TABLE_NAME
 
-  def __init__(self, dbName):
+  def __init__(self, dbName, debug):
     if dbName[-3:] != '.db':
       raise Exception('db name must end in .db')
 
+    self.debug = debug
     self.conn = sqlite3.connect(dbName)
     self.c = self.conn.cursor()
 
-    temp = (12345.6789, "2016-08-20 12:34:54", 11.11, 22.22, 33.33)
-
+    # Initialize the table. If it's not created, create it.
     self._MaybeCreateTable()
-    self.InsertSpeedTestData(temp)
-    self.PrintAll()
 
   def InsertSpeedTestData(self, data):
     self.c.execute(self.SQL_INSERT_ROW, data)
     self.conn.commit()
-    #if debug
-    print('Insert data into table: ' + str(data))
+    if self.debug:
+      print('Inserted data into table: ' + str(data))
+
+  def ImportCsv(self, csvfile):
+    with open('speedData.csv', 'r', 0) as csvfile:
+      reader = csv.reader(csvfile, delimiter=' ')
+      for row in reader:
+        self.InsertSpeedTestData(row)
 
   def PrintAll(self):
     print('=====%s=====' % self.TABLE_NAME)
@@ -210,11 +224,13 @@ class SpeedTestDataCursor:
   def _MaybeCreateTable(self):
     self.c.execute(self.SQL_GET_TABLE, (self.TABLE_NAME,))
     if len(self.c.fetchall()) == 0:
-      print('Create a new table: ' + str(self.TABLE_NAME))
+      if self.debug:
+        print('Create a new table: ' + str(self.TABLE_NAME))
       self.c.execute(self.SQL_CREATE_TABLE)
       self.conn.commit()
     else:
-      print('No table to create. %s already exists.' % self.TABLE_NAME)
+      if self.debug:
+        print('No table to create. %s already exists.' % self.TABLE_NAME)
 
 
 def ReadSettingsConfig():
@@ -237,19 +253,27 @@ def ReadSettingsConfig():
   if 'times' in data:
     times = data['times']
 
-  return [debug, offset, times]
+  if 'dbfile' in data:
+    dbfile = data['dbfile']
+
+  return [debug, offset, times, dbfile]
 
 def CurrentTime():
   return str(datetime.now(timezone('US/Pacific')))
 
 def main():
   # First, read in the settings.config
-  #configs = ReadSettingsConfig()
+  configs = ReadSettingsConfig()
+  debugFlag = configs[0]
+  offset = configs[1]
+  times = configs[2]
+  dbfile = configs[3]
 
-  #pollingSpeedTest = PollingSpeedTest(configs[0], configs[1], configs[2])
-  #pollingSpeedTest.Start()
+  # Create the db cursor for storing the data
+  dbCursor = SpeedTestDataCursor(dbfile, debugFlag)
 
-  cursor = SpeedTestDataCursor('example.db')
+  pollingSpeedTest = PollingSpeedTest(dbCursor, debugFlag, offset, times)
+  pollingSpeedTest.Start()
 
 if __name__ == '__main__':
   # execute only if run as a script
