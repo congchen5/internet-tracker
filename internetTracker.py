@@ -189,6 +189,7 @@ class SpeedTestDataCursor:
   SQL_CREATE_TABLE = (
       "CREATE TABLE %s (timestamp real, date text, ping real, download real, upload real);"
           % TABLE_NAME)
+  SQL_DROP_TABLE = "DROP TABLE %s;" % TABLE_NAME
   SQL_INSERT_ROW = "INSERT INTO %s VALUES (?, ?, ?, ?, ?);" % TABLE_NAME
 
   def __init__(self, dbName, debug):
@@ -219,6 +220,12 @@ class SpeedTestDataCursor:
     for row in self.c.execute('SELECT * FROM %s;' % self.TABLE_NAME):
       print row
     print('-----%s-----' % ('-' * len(self.TABLE_NAME)))
+
+  def DropTable(self):
+    # TODO: Make more safe. Have some kind of confirmation.
+    print('Dropped Table %s' % self.TABLE_NAME)
+    self.c.execute(self.SQL_DROP_TABLE)
+    self.conn.commit()
 
   # Check if the speed_test_data table exists. If not, create it.
   def _MaybeCreateTable(self):
