@@ -182,6 +182,10 @@ class PollingSpeedTest:
         speedTestOutput[2])
 
 
+# TODO: Add set of API like functions that make interacting with db on command
+# line easier. (e.g. Query by dates, length lookup, etc)
+# May turn into an object where you can chain on things you want?
+#   e.g. cursor.Query(...).withLength().withDownloadData()
 class SpeedTestDataCursor:
   """A class that allows you to easily work with the SQLite3 DB"""
   TABLE_NAME = 'speed_test_data'
