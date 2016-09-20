@@ -4,6 +4,7 @@ import time
 import csv
 import subprocess
 import json
+import sqlite3
 
 from datetime import datetime
 from pytz import timezone
@@ -170,6 +171,52 @@ class PollingSpeedTest:
 
     return [ping, download, upload];
 
+
+class SpeedTestDataCursor:
+  """A class that allows you to easily work with the SQLite3 DB"""
+  TABLE_NAME = 'speed_test_data'
+  SQL_GET_TABLE = "SELECT * FROM sqlite_master WHERE type='table' AND name=?;"
+  SQL_CREATE_TABLE = (
+      "CREATE TABLE %s (timestamp real, date text, ping real, download real, upload real);"
+          % TABLE_NAME)
+  SQL_INSERT_ROW = "INSERT INTO %s VALUES (?, ?, ?, ?, ?);" % TABLE_NAME
+
+  def __init__(self, dbName):
+    if dbName[-3:] != '.db':
+      raise Exception('db name must end in .db')
+
+    self.conn = sqlite3.connect(dbName)
+    self.c = self.conn.cursor()
+
+    temp = (12345.6789, "2016-08-20 12:34:54", 11.11, 22.22, 33.33)
+
+    self._MaybeCreateTable()
+    self.InsertSpeedTestData(temp)
+    self.PrintAll()
+
+  def InsertSpeedTestData(self, data):
+    self.c.execute(self.SQL_INSERT_ROW, data)
+    self.conn.commit()
+    #if debug
+    print('Insert data into table: ' + str(data))
+
+  def PrintAll(self):
+    print('=====%s=====' % self.TABLE_NAME)
+    for row in self.c.execute('SELECT * FROM %s;' % self.TABLE_NAME):
+      print row
+    print('-----%s-----' % ('-' * len(self.TABLE_NAME)))
+
+  # Check if the speed_test_data table exists. If not, create it.
+  def _MaybeCreateTable(self):
+    self.c.execute(self.SQL_GET_TABLE, (self.TABLE_NAME,))
+    if len(self.c.fetchall()) == 0:
+      print('Create a new table: ' + str(self.TABLE_NAME))
+      self.c.execute(self.SQL_CREATE_TABLE)
+      self.conn.commit()
+    else:
+      print('No table to create. %s already exists.' % self.TABLE_NAME)
+
+
 def ReadSettingsConfig():
   with open('settings.config') as settings_file:
     data = json.load(settings_file)
@@ -197,10 +244,12 @@ def CurrentTime():
 
 def main():
   # First, read in the settings.config
-  configs = ReadSettingsConfig()
+  #configs = ReadSettingsConfig()
 
-  pollingSpeedTest = PollingSpeedTest(configs[0], configs[1], configs[2])
-  pollingSpeedTest.Start()
+  #pollingSpeedTest = PollingSpeedTest(configs[0], configs[1], configs[2])
+  #pollingSpeedTest.Start()
+
+  cursor = SpeedTestDataCursor('example.db')
 
 if __name__ == '__main__':
   # execute only if run as a script
