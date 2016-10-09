@@ -195,6 +195,10 @@ class SpeedTestDataCursor:
           % TABLE_NAME)
   SQL_DROP_TABLE = "DROP TABLE %s;" % TABLE_NAME
   SQL_INSERT_ROW = "INSERT INTO %s VALUES (?, ?, ?, ?, ?);" % TABLE_NAME
+  SQL_SELECT_ALL = "SELECT * FROM %s;" % TABLE_NAME
+  SQL_SELECT_RECENT = (
+      "SELECT * FROM (SELECT * FROM %s ORDER BY timestamp DESC LIMIT 10) sub ORDER BY timestamp ASC"
+      % TABLE_NAME)
 
   def __init__(self, dbName, debug):
     if dbName[-3:] != '.db':
@@ -207,11 +211,11 @@ class SpeedTestDataCursor:
     # Initialize the table. If it's not created, create it.
     self._MaybeCreateTable()
 
-  def InsertSpeedTestData(self, data):
-    self.c.execute(self.SQL_INSERT_ROW, data)
-    self.conn.commit()
-    if self.debug:
-      print('Inserted data into table: ' + str(data))
+  # Allow executing arbitrary displaying queries for debugging purposes.
+  # This method will not commit data manipulating queries.
+  def Execute(self, query):
+    for row in self.c.execute(query):
+      print row
 
   def ImportCsv(self, csvfile):
     with open('speedData.csv', 'r', 0) as csvfile:
@@ -221,7 +225,13 @@ class SpeedTestDataCursor:
 
   def PrintAll(self):
     print('=====%s=====' % self.TABLE_NAME)
-    for row in self.c.execute('SELECT * FROM %s;' % self.TABLE_NAME):
+    for row in self.c.execute(self.SQL_SELECT_ALL):
+      print row
+    print('-----%s-----' % ('-' * len(self.TABLE_NAME)))
+
+  def PrintRecent(self):
+    print('=====%s=====' % self.TABLE_NAME)
+    for row in self.c.execute(self.SQL_SELECT_RECENT):
       print row
     print('-----%s-----' % ('-' * len(self.TABLE_NAME)))
 
@@ -230,6 +240,12 @@ class SpeedTestDataCursor:
     print('Dropped Table %s' % self.TABLE_NAME)
     self.c.execute(self.SQL_DROP_TABLE)
     self.conn.commit()
+
+  def InsertSpeedTestData(self, data):
+    self.c.execute(self.SQL_INSERT_ROW, data)
+    self.conn.commit()
+    if self.debug:
+      print('Inserted data into table: ' + str(data))
 
   # Check if the speed_test_data table exists. If not, create it.
   def _MaybeCreateTable(self):
